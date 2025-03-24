@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
         {"cookie",     required_argument, 0, 'c'},
         {"max-redirs", required_argument, 0, 'm'},
         {"user-agent", required_argument, 0, 'u'},
-        {0,            0,                 0, 0  },
+        {0,            0,                 0, 0  }
     };
 
     const char *short_url = NULL;

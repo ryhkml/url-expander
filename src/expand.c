@@ -85,13 +85,16 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
         return;
     }
 
+    const char *HEADER_LIST[] = {"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                                 "Accept-Language: en-US,en;q=0.5",
+                                 "Cache-Control: no-cache, no-store, must-revalidate",
+                                 "Connection: keep-alive",
+                                 "Expires: 0",
+                                 NULL};
     struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers,
-                                "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
-    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.5");
-    headers = curl_slist_append(headers, "Cache-Control: no-cache, no-store, must-revalidate");
-    headers = curl_slist_append(headers, "Connection: keep-alive");
-    headers = curl_slist_append(headers, "Expires: 0");
+    for (int i = 0; HEADER_LIST[i] != NULL; i++) {
+        headers = curl_slist_append(headers, HEADER_LIST[i]);
+    }
 
     struct memory chunk = {0};
 
