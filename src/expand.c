@@ -1,5 +1,6 @@
 #include "expand.h"
 
+#include <ctype.h>
 #include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +17,21 @@ static char *mstrdup(const char *value) {
     char *new_value = malloc(len);
     if (new_value) memcpy(new_value, value, len);
     return new_value;
+}
+
+static char *mstrcasestr(const char *haystack, const char *needle) {
+    if (!haystack || !needle) return NULL;
+    while (*haystack) {
+        const char *h = haystack;
+        const char *n = needle;
+        while (*h && *n && (tolower((unsigned char)*h) == tolower((unsigned char)*n))) {
+            h++;
+            n++;
+        }
+        if (!*n) return (char *)haystack;
+        haystack++;
+    }
+    return NULL;
 }
 
 // Callback function to write response data into memory
@@ -37,20 +53,19 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *clientp)
 
 static char *extract_meta_refresh_url(const char *html) {
     if (!html) return NULL;
-    char *meta = strstr(html, "<META http-equiv=\"refresh\"");
-    if (meta) {
-        char *url_start = strstr(meta, "URL=");
-        if (url_start) {
-            url_start += 4;
-            char *url_end = strchr(url_start, '"');
-            if (url_end) {
-                size_t len = url_end - url_start;
-                char *url = malloc(len + 1);
-                if (url) {
-                    memcpy(url, url_start, len);
-                    url[len] = '\0';
-                    return url;
-                }
+    char *meta = mstrcasestr(html, "<meta http-equiv=\"refresh\"");
+    if (!meta) return NULL;
+    char *url_start = mstrcasestr(meta, "url=");
+    if (url_start) {
+        url_start += 4;
+        char *url_end = strchr(url_start, '"');
+        if (url_end) {
+            size_t len = url_end - url_start;
+            char *url = malloc(len + 1);
+            if (url) {
+                memcpy(url, url_start, len);
+                url[len] = '\0';
+                return url;
             }
         }
     }
@@ -71,7 +86,11 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
     }
 
     struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers,
+                                "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+    headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.5");
     headers = curl_slist_append(headers, "Cache-Control: no-cache, no-store, must-revalidate");
+    headers = curl_slist_append(headers, "Connection: keep-alive");
     headers = curl_slist_append(headers, "Expires: 0");
 
     struct memory chunk = {0};
@@ -102,7 +121,7 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
     long status_code;
     CURLcode res;
 
-    printf("> %s\n", current_url);
+    printf("%s--> Accessing%s %s\n", YELLOW, RESET, current_url);
 
     while (count_redirs < max_redirs) {
         chunk.response = NULL;
@@ -120,7 +139,7 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
             char *redir_url = NULL;
             res = curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &redir_url);
             if (res == CURLE_OK && redir_url) {
-                printf("%s--> %u %s%s\n", YELLOW, (unsigned int)status_code, RESET, redir_url);
+                printf("%s--> %u%s %s\n", YELLOW, (unsigned int)status_code, RESET, redir_url);
                 free(current_url);
                 current_url = mstrdup(redir_url);
                 count_redirs++;
@@ -131,16 +150,16 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
         } else if (status_code >= 200 && status_code < 300 && chunk.response) {
             char *meta_url = extract_meta_refresh_url(chunk.response);
             if (meta_url) {
-                printf("%s--> Extracting meta refresh %s%s\n", YELLOW, RESET, meta_url);
+                printf("%s--> Extracting meta refresh%s %s\n", YELLOW, RESET, meta_url);
                 free(current_url);
                 current_url = meta_url;
                 count_redirs++;
             } else {
-                printf("%s--> Redirect to %s%s\n", GREEN, RESET, current_url);
+                printf("%s--> Redirect to%s %s\n", GREEN, RESET, current_url);
                 break;
             }
         } else {
-            printf("%s--> Redirect to %s%s\n", GREEN, RESET, current_url);
+            printf("%s--> Redirect to%s %s\n", GREEN, RESET, current_url);
             break;
         }
 
@@ -150,7 +169,7 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
         }
     }
     if (count_redirs == max_redirs) {
-        fprintf(stderr, "Max redirects (%ld) reached. Possible redirect loop\n", max_redirs);
+        printf("Max redirects (%ld) reached. Possible redirect loop\n", max_redirs);
     }
 
     free(current_url);
