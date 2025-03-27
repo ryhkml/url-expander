@@ -1,6 +1,8 @@
 #ifndef EXPAND_H
 #define EXPAND_H
 
+#include <stdbool.h>
+
 // Source: https://curl.se/libcurl/c/CURLOPT_CONNECTTIMEOUT.html
 #define DEFAULT_CONNECT_TIMEOUT 10L
 // Source: https://curl.se/libcurl/c/CURLOPT_TIMEOUT.html
@@ -16,7 +18,7 @@
 #define RED "\033[1;31m"
 #define RESET "\033[0m"
 
-void expand(const char *short_url, long max_redirs, const char *user_agent, const char *cookie);
+void expand(const char *short_url, long max_redirs, const char *user_agent, const char *cookie, bool verbose);
 void init_curl();
 void cleanup_curl();
 

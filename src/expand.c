@@ -72,7 +72,7 @@ static char *extract_meta_refresh_url(const char *html) {
     return NULL;
 }
 
-void expand(const char *short_url, long max_redirs, const char *user_agent, const char *cookie) {
+void expand(const char *short_url, long max_redirs, const char *user_agent, const char *cookie, bool verbose) {
     CURL *curl = curl_easy_init();
     if (!curl) {
         printf("Failed initialize curl\n");
@@ -119,6 +119,7 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
             free(new_cookie);
         }
     }
+    if (verbose) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     int count_redirs = 0;
     long status_code;
@@ -171,9 +172,8 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
             chunk.response = NULL;
         }
     }
-    if (count_redirs == max_redirs) {
-        printf("Max redirects (%ld) reached. Possible redirect loop\n", max_redirs);
-    }
+
+    if (count_redirs == max_redirs) printf("Max redirects (%ld) reached. Possible redirect loop\n", max_redirs);
 
     free(current_url);
     if (chunk.response) free(chunk.response);

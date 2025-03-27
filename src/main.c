@@ -4,37 +4,63 @@
 
 #include "expand.h"
 
+void print_help() {
+    printf("\n");
+    printf("%sUnshorten URLs into their original links%s\n", GREEN, RESET);
+    printf("\n");
+    printf("Usage   : expand-url <options?> <short_url>\n");
+    printf("Options :\n");
+    printf("  -c, --cookie <path>        Set cookie from file\n");
+    printf("  -M, --max-redirs <uint>    Set maximum redirects\n");
+    printf("  -U, --user-agent <string>  Set user-agent\n");
+    printf("\n");
+    printf("  -h, --help                 Display help message\n");
+    printf("      --verbose              Enable verbose mode\n");
+    printf("\n");
+}
+
 int main(int argc, char *argv[]) {
     init_curl();
 
     struct option some_options[] = {
-        {"cookie",     required_argument, 0, 'c'},
-        {"max-redirs", required_argument, 0, 'm'},
-        {"user-agent", required_argument, 0, 'u'},
-        {0,            0,                 0, 0  }
+        {"cookie",     required_argument, NULL, 'c'},
+        {"max-redirs", required_argument, NULL, 'M'},
+        {"user-agent", required_argument, NULL, 'U'},
+        {"help",       no_argument,       NULL, 'h'},
+        {"verbose",    no_argument,       NULL, 0  },
+        {0,            0,                 0,    0  }
     };
 
     const char *short_url = NULL;
     const char *user_agent = DEFAULT_USER_AGENT;
     const char *cookie = NULL;
     long max_redirs = DEFAULT_MAX_REDIRS;
+    bool verbose = false;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:m:u:", some_options, NULL)) != -1) {
+    int opt_index = 0;
+    while ((opt = getopt_long(argc, argv, "c:M:U:h", some_options, &opt_index)) != -1) {
         switch (opt) {
             case 'c':
                 cookie = optarg;
                 break;
-            case 'm':
-                max_redirs = atoi(optarg);
+            case 'M':
+                max_redirs = (long)atoi(optarg);
                 if (max_redirs <= 0) {
                     fprintf(stderr, "--max-redirs must be a positive\n");
                     cleanup_curl();
                     return EXIT_FAILURE;
                 }
                 break;
-            case 'u':
+            case 'U':
                 user_agent = optarg;
+                break;
+            case 'h':
+                print_help();
+                cleanup_curl();
+                return EXIT_SUCCESS;
+            case 0:
+                if (opt_index == 4) verbose = true;
                 break;
             default:
                 fprintf(stderr, "Usage: %s <options?> <short_url>\n", argv[0]);
@@ -50,7 +76,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    expand(short_url, max_redirs, user_agent, cookie);
+    expand(short_url, max_redirs, user_agent, cookie, verbose);
     cleanup_curl();
 
     return EXIT_SUCCESS;
