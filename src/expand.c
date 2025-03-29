@@ -15,12 +15,14 @@ static char *mstrdup(const char *value) {
     if (!value) return NULL;
     size_t len = strlen(value) + 1;
     char *new_value = malloc(len);
-    if (new_value) memcpy(new_value, value, len);
+    if (!new_value) return NULL;
+    memcpy(new_value, value, len);
     return new_value;
 }
 
 static char *mstrcasestr(const char *haystack, const char *needle) {
     if (!haystack || !needle) return NULL;
+    if (!*needle) return (char *)haystack;
     while (*haystack) {
         const char *h = haystack;
         const char *n = needle;
