@@ -48,7 +48,7 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *clientp)
     mem->response = ptr;
     memcpy(&(mem->response[mem->size]), contents, realsize);
     mem->size += realsize;
-    mem->response[mem->size] = 0;
+    mem->response[mem->size] = '\0';
 
     return realsize;
 }
@@ -98,7 +98,10 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
         headers = curl_slist_append(headers, HEADER_LIST[i]);
     }
 
-    struct memory chunk = {0};
+    struct memory chunk = {
+        .response = malloc(1),
+        .size = 0,
+    };
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
