@@ -4,13 +4,13 @@
 
 #include "expand.h"
 
-void print_help() {
+static void print_help() {
     printf("\n");
     printf("%sUnshorten URLs into their original links%s\n", GREEN, RESET);
     printf("\n");
     printf("Usage   : expand-url <options?> <short_url>\n");
     printf("Options :\n");
-    printf("  -c, --cookie <path>        Set cookie from file\n");
+    printf("  -c, --cookie <string>      Set cookie path from file\n");
     printf("  -M, --max-redirs <uint>    Set maximum redirects\n");
     printf("  -U, --user-agent <string>  Set user-agent\n");
     printf("\n");
@@ -32,38 +32,40 @@ int main(int argc, char *argv[]) {
     };
 
     const char *short_url = NULL;
-    const char *user_agent = DEFAULT_USER_AGENT;
-    const char *cookie = NULL;
-    long max_redirs = DEFAULT_MAX_REDIRS;
-    bool verbose = false;
+    struct url_expander_opt opt_v = {
+        .cookie = NULL,
+        .max_redirs = DEFAULT_MAX_REDIRS,
+        .user_agent = DEFAULT_USER_AGENT,
+        .verbose = false,
+    };
 
     int opt;
     int opt_index = 0;
     while ((opt = getopt_long(argc, argv, "c:M:U:h", some_options, &opt_index)) != -1) {
         switch (opt) {
             case 'c':
-                cookie = optarg;
+                opt_v.cookie = optarg;
                 break;
             case 'M':
-                max_redirs = (long)atoi(optarg);
-                if (max_redirs <= 0) {
+                opt_v.max_redirs = (long)atoi(optarg);
+                if (opt_v.max_redirs <= 0) {
                     fprintf(stderr, "--max-redirs must be a positive\n");
                     cleanup_curl();
                     return EXIT_FAILURE;
                 }
                 break;
             case 'U':
-                user_agent = optarg;
+                opt_v.user_agent = optarg;
                 break;
             case 'h':
                 print_help();
                 cleanup_curl();
                 return EXIT_SUCCESS;
             case 0:
-                if (opt_index == 4) verbose = true;
+                if (opt_index == 4) opt_v.verbose = true;
                 break;
             default:
-                fprintf(stderr, "Usage: %s <options?> <short_url>\n", argv[0]);
+                printf("Invalid option. Use -h or --help to display help message\n");
                 cleanup_curl();
                 return EXIT_FAILURE;
         }
@@ -76,7 +78,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    expand(short_url, max_redirs, user_agent, cookie, verbose);
+    expand(short_url, &opt_v);
     cleanup_curl();
 
     return EXIT_SUCCESS;

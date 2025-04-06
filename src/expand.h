@@ -18,7 +18,14 @@
 #define RED "\033[1;31m"
 #define RESET "\033[0m"
 
-void expand(const char *short_url, long max_redirs, const char *user_agent, const char *cookie, bool verbose);
+struct url_expander_opt {
+    const char *cookie;
+    long max_redirs;
+    const char *user_agent;
+    bool verbose;
+};
+
+void expand(const char *short_url, const struct url_expander_opt *opt_ptr);
 void init_curl();
 void cleanup_curl();
 

@@ -74,7 +74,7 @@ static char *extract_meta_refresh_url(const char *html) {
     return NULL;
 }
 
-void expand(const char *short_url, long max_redirs, const char *user_agent, const char *cookie, bool verbose) {
+void expand(const char *short_url, const struct url_expander_opt *opt_ptr) {
     CURL *curl = curl_easy_init();
     if (!curl) {
         printf("Failed initialize curl\n");
@@ -87,12 +87,14 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
         return;
     }
 
-    const char *HEADER_LIST[] = {"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                                 "Accept-Language: en-US,en;q=0.5",
-                                 "Cache-Control: no-cache, no-store, must-revalidate",
-                                 "Connection: keep-alive",
-                                 "Expires: 0",
-                                 NULL};
+    const char *HEADER_LIST[] = {
+        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language: en-US,en;q=0.5",
+        "Cache-Control: no-cache, no-store, must-revalidate",
+        "Connection: keep-alive",
+        "Expires: 0",
+        NULL,
+    };
     struct curl_slist *headers = NULL;
     for (int i = 0; HEADER_LIST[i] != NULL; i++) {
         headers = curl_slist_append(headers, HEADER_LIST[i]);
@@ -106,25 +108,25 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
     curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, max_redirs);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, user_agent);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, opt_ptr->max_redirs);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, opt_ptr->user_agent);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, DEFAULT_CONNECT_TIMEOUT);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_TIMEOUT);
     curl_easy_setopt(curl, CURLOPT_DOH_URL, "https://cloudflare-dns.com/dns-query");
-    if (cookie) {
+    if (opt_ptr->cookie) {
         // Add suffix for ".new" (4 characters) + '\0' = 5
-        size_t len_cookie = strlen(cookie) + 5;
+        size_t len_cookie = strlen(opt_ptr->cookie) + 5;
         char *new_cookie = malloc(len_cookie);
         if (new_cookie) {
-            snprintf(new_cookie, len_cookie, "%s.new", cookie);
-            curl_easy_setopt(curl, CURLOPT_COOKIEFILE, cookie);
+            snprintf(new_cookie, len_cookie, "%s.new", opt_ptr->cookie);
+            curl_easy_setopt(curl, CURLOPT_COOKIEFILE, opt_ptr->cookie);
             curl_easy_setopt(curl, CURLOPT_COOKIEJAR, new_cookie);
             free(new_cookie);
         }
     }
-    if (verbose) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    if (opt_ptr->verbose) curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     int count_redirs = 0;
     long status_code;
@@ -132,7 +134,7 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
 
     printf("%s--> Accessing%s %s\n", YELLOW, RESET, current_url);
 
-    while (count_redirs < max_redirs) {
+    while (count_redirs < opt_ptr->max_redirs) {
         chunk.response = NULL;
         chunk.size = 0;
 
@@ -178,7 +180,8 @@ void expand(const char *short_url, long max_redirs, const char *user_agent, cons
         }
     }
 
-    if (count_redirs == max_redirs) printf("Max redirects (%ld) reached. Possible redirect loop\n", max_redirs);
+    if (count_redirs == opt_ptr->max_redirs)
+        printf("Max redirects (%ld) reached. Possible redirect loop\n", opt_ptr->max_redirs);
 
     free(current_url);
     if (chunk.response) free(chunk.response);
